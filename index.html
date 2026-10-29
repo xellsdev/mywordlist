@@ -911,6 +911,26 @@
         };
       }
 
+      function normalizeWord(term) {
+        return term
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, "")
+          .trim()
+          .toLocaleLowerCase("es");
+      }
+
+      function findDuplicateWord(wordData, language) {
+        if (language) {
+          const field = language === "es" ? "spanish" : "english";
+          const term = normalizeWord(wordData);
+          return words.find((word) => normalizeWord(word[field]) === term);
+        }
+        return words.find((word) =>
+          normalizeWord(word.english) === normalizeWord(wordData.english)
+          || normalizeWord(word.spanish) === normalizeWord(wordData.spanish)
+        );
+      }
+
       function renderWords() {
         const query = search.value.trim().toLocaleLowerCase("es");
         const visibleWords = words
@@ -1009,7 +1029,19 @@
         addButton.textContent = "Buscando…";
         formStatus.textContent = "Buscando traducción y significado…";
         try {
+          const duplicate = findDuplicateWord(term, language);
+          if (duplicate) {
+            formStatus.textContent = `La palabra "${term}" ya está en tu lista. No se ha añadido otra vez.`;
+            return;
+          }
+
           const wordData = await lookUpWord(term, language);
+          const translatedDuplicate = findDuplicateWord(wordData);
+          if (translatedDuplicate) {
+            formStatus.textContent = `"${translatedDuplicate.english}" ya está en tu lista. No se ha añadido otra vez.`;
+            return;
+          }
+
           const { data: word, error } = await supabaseClient
             .from("words")
             .insert({ ...wordData, ...(knownColumnAvailable ? { known: false } : {}), notes: "" })
