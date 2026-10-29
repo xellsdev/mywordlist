@@ -464,7 +464,7 @@
           <div class="auth-actions">
             <button class="add-button" id="sign-in" type="button">Iniciar sesión</button>
             <button class="secondary-button" id="sign-up" type="button">Crear cuenta</button>
-            <button class="secondary-button" id="resend-confirmation" type="button" hidden>Reenviar correo de confirmación</button>
+            <button class="secondary-button" id="resend-confirmation" type="button">Reenviar correo de confirmación</button>
           </div>
         </form>
         <p class="status" id="connection-status" role="status" aria-live="polite"></p>
@@ -792,7 +792,6 @@
             });
           if (result.error) throw result.error;
           if (action === "sign-up" && !result.data.session) {
-            document.querySelector("#resend-confirmation").hidden = false;
             connectionStatus.textContent = "Cuenta creada. Confirma el correo para iniciar sesión. Si el enlace anterior llevaba a localhost, vuelve a enviar el correo desde aquí.";
           } else if (result.data.session) {
             showApp(result.data.session);
