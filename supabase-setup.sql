@@ -4,9 +4,13 @@ create table if not exists public.words (
   english text not null,
   spanish text not null,
   meaning text not null,
+  known boolean not null default false,
   notes text not null default '',
   created_at timestamptz not null default now()
 );
+
+alter table public.words
+  add column if not exists known boolean not null default false;
 
 alter table public.words enable row level security;
 

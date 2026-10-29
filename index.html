@@ -258,6 +258,7 @@
       .selection-tools {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         justify-content: space-between;
         gap: 14px;
         padding: 12px 23px;
@@ -281,6 +282,31 @@
         height: 20px;
         accent-color: #7862ca;
         cursor: pointer;
+      }
+
+      .knowledge-button {
+        min-width: 150px;
+        min-height: 40px;
+        padding: 7px 10px;
+        border: 2px solid var(--ink);
+        border-radius: 12px;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 800;
+      }
+
+      .knowledge-button[data-known="false"] {
+        background: var(--red);
+      }
+
+      .knowledge-button[data-known="true"] {
+        background: var(--green);
+      }
+
+      .knowledge-button:disabled {
+        cursor: wait;
+        opacity: 0.65;
       }
 
       .print-area {
@@ -338,7 +364,7 @@
 
       table {
         width: 100%;
-        min-width: 860px;
+        min-width: 1010px;
         border-collapse: collapse;
         text-align: left;
       }
@@ -582,7 +608,9 @@
         <div class="selection-tools">
           <p class="selection-count" id="selection-count">0 palabras seleccionadas</p>
           <p class="selection-hint">En el diálogo, elige «Guardar como PDF».</p>
-          <button class="secondary-button" id="export-pdf" type="button" disabled>Generar PDF</button>
+          <button class="secondary-button" id="export-pdf" type="button" disabled>PDF seleccionadas</button>
+          <span class="selection-count" id="study-count">0 por estudiar</span>
+          <button class="secondary-button" id="study-pdf" type="button" disabled>PDF para estudiar</button>
         </div>
         <p class="status" id="database-status" role="status" aria-live="polite" style="padding: 0 23px;"></p>
         <div class="table-wrap">
@@ -595,6 +623,7 @@
                 <th scope="col">Inglés</th>
                 <th scope="col">Español</th>
                 <th scope="col">Significado en inglés</th>
+                <th scope="col">¿Te la sabes?</th>
                 <th scope="col">Mis notas</th>
               </tr>
             </thead>
@@ -636,10 +665,13 @@
       const selectionCount = document.querySelector("#selection-count");
       const selectVisible = document.querySelector("#select-visible");
       const exportPdfButton = document.querySelector("#export-pdf");
+      const studyPdfButton = document.querySelector("#study-pdf");
+      const studyCount = document.querySelector("#study-count");
       const printArea = document.querySelector("#print-area");
       const LEGACY_STORAGE_KEY = "english-learning-words";
       let supabaseClient;
       let words = [];
+      let knownColumnAvailable = true;
       const selectedWordIds = new Set();
 
       function showApp(session) {
@@ -657,6 +689,11 @@
           importLegacyButton.hidden = true;
           renderWords();
         }
+      }
+
+      function isMissingKnownColumn(error) {
+        return ["42703", "PGRST204"].includes(error?.code)
+          && `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase().includes("known");
       }
 
       document.querySelector("#resend-confirmation").addEventListener("click", async () => {
@@ -687,12 +724,29 @@
 
       async function loadWords() {
         databaseStatus.textContent = "";
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
           .from("words")
-          .select("id, english, spanish, meaning, notes")
+          .select("id, english, spanish, meaning, known, notes")
           .order("english", { ascending: true });
+        if (isMissingKnownColumn(error)) {
+          knownColumnAvailable = false;
+          ({ data, error } = await supabaseClient
+            .from("words")
+            .select("id, english, spanish, meaning, notes")
+            .order("english", { ascending: true }));
+          if (!error) {
+            words = data.map((word) => ({ ...word, known: false }));
+            databaseStatus.textContent = "Para guardar si te sabes cada palabra, aplica la actualización incluida en el archivo de migración y vuelve a entrar.";
+            renderWords();
+            return;
+          }
+        } else {
+          knownColumnAvailable = true;
+        }
         if (error) {
-          databaseStatus.textContent = "No se pudieron cargar las palabras. Comprueba tu conexión e inténtalo otra vez.";
+          databaseStatus.textContent = isMissingKnownColumn(error)
+            ? "Falta aplicar la actualización de la base de datos. Ejecuta el archivo de migración y vuelve a entrar."
+            : "No se pudieron cargar las palabras. Comprueba tu conexión e inténtalo otra vez.";
           console.error("Error al cargar las palabras:", error);
           throw error;
         }
@@ -730,6 +784,42 @@
         const selectedCount = selectedWordIds.size;
         selectionCount.textContent = `${selectedCount} ${selectedCount === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`;
         exportPdfButton.disabled = selectedCount === 0;
+        const unknownCount = words.filter((word) => !word.known).length;
+        studyCount.textContent = `${unknownCount} ${unknownCount === 1 ? "palabra para estudiar" : "palabras para estudiar"}`;
+        studyPdfButton.disabled = unknownCount === 0;
+      }
+
+      function getKnowledgeLabel(known) {
+        return known ? "🟢 Me la sé" : "🔴 No me la sé";
+      }
+
+      async function toggleKnowledge(word, button) {
+        if (!knownColumnAvailable) return;
+        const nextKnown = !word.known;
+        button.disabled = true;
+        button.textContent = "Guardando…";
+        try {
+          const { error } = await supabaseClient
+            .from("words")
+            .update({ known: nextKnown })
+            .eq("id", word.id);
+          if (error) throw error;
+          word.known = nextKnown;
+          button.dataset.known = String(word.known);
+          button.setAttribute("aria-pressed", String(word.known));
+          button.setAttribute("aria-label", `${getKnowledgeLabel(word.known)}: ${word.english}`);
+          button.textContent = getKnowledgeLabel(word.known);
+          updateSelectionCount();
+          databaseStatus.textContent = "Estado guardado.";
+        } catch (error) {
+          button.textContent = getKnowledgeLabel(word.known);
+          databaseStatus.textContent = isMissingKnownColumn(error)
+            ? "Falta aplicar la actualización de la base de datos. Ejecuta el archivo de migración y vuelve a entrar."
+            : "No se pudo guardar el estado. Comprueba tu conexión e inténtalo otra vez.";
+          console.error("Error al guardar el estado de aprendizaje:", error);
+        } finally {
+          button.disabled = false;
+        }
       }
 
       async function translateWord(term, languagePair) {
@@ -825,6 +915,22 @@
             makeCell(word.meaning)
           );
 
+          const knowledgeCell = document.createElement("td");
+          const knowledgeButton = document.createElement("button");
+          knowledgeButton.className = "knowledge-button";
+          knowledgeButton.type = "button";
+          knowledgeButton.dataset.known = String(word.known);
+          knowledgeButton.setAttribute("aria-pressed", String(word.known));
+          knowledgeButton.setAttribute("aria-label", `${getKnowledgeLabel(word.known)}: ${word.english}`);
+          knowledgeButton.textContent = getKnowledgeLabel(word.known);
+          knowledgeButton.disabled = !knownColumnAvailable;
+          if (!knownColumnAvailable) {
+            knowledgeButton.title = "Aplica la actualización de la base de datos para guardar este estado.";
+          }
+          knowledgeButton.addEventListener("click", () => toggleKnowledge(word, knowledgeButton));
+          knowledgeCell.append(knowledgeButton);
+          row.append(knowledgeCell);
+
           const notesCell = document.createElement("td");
           const notes = document.createElement("textarea");
           notes.className = "notes-input";
@@ -883,11 +989,13 @@
           const wordData = await lookUpWord(term, language);
           const { data: word, error } = await supabaseClient
             .from("words")
-            .insert({ ...wordData, notes: "" })
-            .select("id, english, spanish, meaning, notes")
+            .insert({ ...wordData, ...(knownColumnAvailable ? { known: false } : {}), notes: "" })
+            .select(knownColumnAvailable
+              ? "id, english, spanish, meaning, known, notes"
+              : "id, english, spanish, meaning, notes")
             .single();
           if (error) throw error;
-          words.push(word);
+          words.push({ ...word, known: knownColumnAvailable ? word.known : false });
 
           form.reset();
           updateWordTermLabel();
@@ -926,30 +1034,29 @@
         renderWords();
       });
 
-      exportPdfButton.addEventListener("click", () => {
-        const selectedWords = words
-          .filter((word) => selectedWordIds.has(word.id))
+      function preparePdf(wordsToPrint, subtitleText) {
+        const sortedWords = wordsToPrint
+          .slice()
           .sort((a, b) => a.english.localeCompare(b.english, "en", { sensitivity: "base" }));
-        if (!selectedWords.length) return;
-
+        if (!sortedWords.length) return;
         printArea.replaceChildren();
         const heading = document.createElement("h1");
         heading.textContent = "My word List";
         const subtitle = document.createElement("p");
-        subtitle.textContent = `${selectedWords.length} ${selectedWords.length === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`;
+        subtitle.textContent = subtitleText;
         const table = document.createElement("table");
         const header = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        for (const title of ["Inglés", "Español", "Significado en inglés", "Mis notas"]) {
+        for (const title of ["Inglés", "Español", "Significado en inglés", "¿Te la sabes?", "Mis notas"]) {
           const cell = document.createElement("th");
           cell.textContent = title;
           headerRow.append(cell);
         }
         header.append(headerRow);
         const body = document.createElement("tbody");
-        for (const word of selectedWords) {
+        for (const word of sortedWords) {
           const row = document.createElement("tr");
-          for (const value of [word.english, word.spanish, word.meaning, word.notes]) {
+          for (const value of [word.english, word.spanish, word.meaning, getKnowledgeLabel(word.known), word.notes]) {
             const cell = document.createElement("td");
             cell.textContent = value;
             row.append(cell);
@@ -959,6 +1066,24 @@
         table.append(header, body);
         printArea.append(heading, subtitle, table);
         window.print();
+      }
+
+      exportPdfButton.addEventListener("click", () => {
+        const selectedWords = words.filter((word) => selectedWordIds.has(word.id));
+        if (!selectedWords.length) return;
+        preparePdf(
+          selectedWords,
+          `${selectedWords.length} ${selectedWords.length === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`
+        );
+      });
+
+      studyPdfButton.addEventListener("click", () => {
+        const wordsToStudy = words.filter((word) => !word.known);
+        if (!wordsToStudy.length) return;
+        preparePdf(
+          wordsToStudy,
+          `${wordsToStudy.length} ${wordsToStudy.length === 1 ? "palabra para estudiar" : "palabras para estudiar"}`
+        );
       });
 
       async function authenticate(action) {
@@ -1026,6 +1151,7 @@
               english: String(word.english),
               spanish: String(word.spanish ?? ""),
               meaning: String(word.meaning ?? ""),
+              known: false,
               notes: String(word.notes ?? "")
             };
           });
@@ -1033,9 +1159,11 @@
             const { data, error } = await supabaseClient
               .from("words")
               .insert(imports)
-              .select("id, english, spanish, meaning, notes");
+              .select(knownColumnAvailable
+                ? "id, english, spanish, meaning, known, notes"
+                : "id, english, spanish, meaning, notes");
             if (error) throw error;
-            words.push(...data);
+            words.push(...data.map((word) => ({ ...word, known: knownColumnAvailable ? word.known : false })));
             renderWords();
           }
           localStorage.removeItem(LEGACY_STORAGE_KEY);
