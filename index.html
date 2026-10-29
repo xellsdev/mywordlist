@@ -905,8 +905,8 @@
           : await translateWord(term, "en|es");
         const meaning = await findEnglishDefinition(english);
         return {
-          english,
-          spanish,
+          english: english.toLocaleLowerCase("es"),
+          spanish: spanish.toLocaleLowerCase("es"),
           meaning
         };
       }
@@ -1021,7 +1021,7 @@
         event.preventDefault();
         const termInput = document.querySelector("#word-term");
         const addButton = form.querySelector('button[type="submit"]');
-        const term = termInput.value.trim();
+        const term = termInput.value.trim().toLocaleLowerCase("es");
         const language = sourceLanguage.value;
         if (!term) return;
 
