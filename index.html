@@ -635,8 +635,8 @@
         <div class="selection-tools">
           <p class="selection-count" id="selection-count">0 palabras seleccionadas</p>
           <p class="selection-hint">En el diálogo, elige «Guardar como PDF».</p>
-          <button class="secondary-button" id="export-pdf" type="button" disabled>PDF seleccionadas</button>
-          <button class="secondary-button" id="study-pdf" type="button" disabled>PDF para estudiar<span class="study-indicator" aria-hidden="true"></span></button>
+          <button class="secondary-button" id="export-pdf" type="button">PDF seleccionadas</button>
+          <button class="secondary-button" id="study-pdf" type="button">PDF para estudiar<span class="study-indicator" aria-hidden="true"></span></button>
         </div>
         <p class="status" id="database-status" role="status" aria-live="polite" style="padding: 0 23px;"></p>
         <div class="table-wrap">
@@ -808,9 +808,6 @@
       function updateSelectionCount() {
         const selectedCount = selectedWordIds.size;
         selectionCount.textContent = `${selectedCount} ${selectedCount === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`;
-        exportPdfButton.disabled = selectedCount === 0;
-        const unknownCount = words.filter((word) => !word.known).length;
-        studyPdfButton.disabled = unknownCount === 0;
       }
 
       function getKnowledgeLabel(known) {
@@ -1096,7 +1093,10 @@
 
       exportPdfButton.addEventListener("click", () => {
         const selectedWords = words.filter((word) => selectedWordIds.has(word.id));
-        if (!selectedWords.length) return;
+        if (!selectedWords.length) {
+          databaseStatus.textContent = "Selecciona una o varias palabras de la tabla para generar este PDF.";
+          return;
+        }
         preparePdf(
           selectedWords,
           `${selectedWords.length} ${selectedWords.length === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`
@@ -1105,7 +1105,10 @@
 
       studyPdfButton.addEventListener("click", () => {
         const wordsToStudy = words.filter((word) => !word.known);
-        if (!wordsToStudy.length) return;
+        if (!wordsToStudy.length) {
+          databaseStatus.textContent = "No hay palabras marcadas como «No me la sé» para incluir en este PDF.";
+          return;
+        }
         preparePdf(
           wordsToStudy,
           `${wordsToStudy.length} ${wordsToStudy.length === 1 ? "palabra para estudiar" : "palabras para estudiar"}`
