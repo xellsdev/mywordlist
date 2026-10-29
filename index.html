@@ -652,18 +652,31 @@
       }
 
       async function lookUpWord(english) {
-        const dictionaryUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(english)}`;
+        const dictionaryUrl = `https://api.datamuse.com/words?${new URLSearchParams({
+          sp: english,
+          md: "d",
+          max: "10"
+        })}`;
         const translationUrl = `https://api.mymemory.translated.net/get?${new URLSearchParams({
           q: english,
           langpair: "en|es"
         })}`;
-        const [dictionaryResponse, translationResponse] = await Promise.all([
+        const [dictionaryResult, translationResult] = await Promise.allSettled([
           fetch(dictionaryUrl),
           fetch(translationUrl)
         ]);
 
+        if (dictionaryResult.status === "rejected") {
+          throw new Error("No se pudo conectar con el diccionario. Comprueba tu conexión e inténtalo de nuevo.");
+        }
+        if (translationResult.status === "rejected") {
+          throw new Error("No se pudo conectar con el traductor. Comprueba tu conexión e inténtalo de nuevo.");
+        }
+
+        const dictionaryResponse = dictionaryResult.value;
+        const translationResponse = translationResult.value;
         if (!dictionaryResponse.ok) {
-          throw new Error(`No encontramos "${english}" en el diccionario inglés.`);
+          throw new Error("El diccionario no está disponible ahora. Inténtalo de nuevo más tarde.");
         }
         if (!translationResponse.ok) {
           throw new Error("No se pudo consultar el traductor. Inténtalo de nuevo.");
@@ -671,10 +684,12 @@
 
         const dictionary = await dictionaryResponse.json();
         const translation = await translationResponse.json();
-        const meanings = dictionary.flatMap((entry) => entry.meanings ?? []);
-        const definition = meanings
-          .flatMap((meaning) => meaning.definitions ?? [])
-          .find((item) => item.definition)?.definition;
+        const exactMatch = dictionary.find((entry) =>
+          entry.word?.localeCompare(english, "en", { sensitivity: "base" }) === 0
+        );
+        const definition = exactMatch?.defs
+          ?.map((item) => item.replace(/^[a-z]+\t/i, "").trim())
+          .find(Boolean);
         const spanish = translation.responseData?.translatedText?.trim();
 
         if (!definition) {
