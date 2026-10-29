@@ -285,28 +285,54 @@
       }
 
       .knowledge-button {
-        min-width: 150px;
-        min-height: 40px;
-        padding: 7px 10px;
+        position: relative;
+        width: 62px;
+        height: 36px;
+        padding: 0;
         border: 2px solid var(--ink);
-        border-radius: 12px;
-        color: var(--ink);
+        border-radius: 999px;
         cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 800;
+        transition: background-color 140ms ease;
       }
 
       .knowledge-button[data-known="false"] {
-        background: var(--red);
+        background: #e85a5a;
       }
 
       .knowledge-button[data-known="true"] {
-        background: var(--green);
+        background: #50b86b;
+      }
+
+      .knowledge-button::after {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 26px;
+        height: 26px;
+        border: 1px solid rgb(38 50 75 / 25%);
+        border-radius: 50%;
+        background: white;
+        content: "";
+        transition: transform 140ms ease;
+      }
+
+      .knowledge-button[data-known="true"]::after {
+        transform: translateX(26px);
       }
 
       .knowledge-button:disabled {
         cursor: wait;
         opacity: 0.65;
+      }
+
+      .study-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-left: 5px;
+        border-radius: 50%;
+        background: #e53935;
+        vertical-align: 0;
       }
 
       .print-area {
@@ -609,8 +635,7 @@
           <p class="selection-count" id="selection-count">0 palabras seleccionadas</p>
           <p class="selection-hint">En el diálogo, elige «Guardar como PDF».</p>
           <button class="secondary-button" id="export-pdf" type="button" disabled>PDF seleccionadas</button>
-          <span class="selection-count" id="study-count">0 por estudiar</span>
-          <button class="secondary-button" id="study-pdf" type="button" disabled>PDF para estudiar</button>
+          <button class="secondary-button" id="study-pdf" type="button" disabled>PDF para estudiar<span class="study-indicator" aria-hidden="true"></span></button>
         </div>
         <p class="status" id="database-status" role="status" aria-live="polite" style="padding: 0 23px;"></p>
         <div class="table-wrap">
@@ -666,7 +691,6 @@
       const selectVisible = document.querySelector("#select-visible");
       const exportPdfButton = document.querySelector("#export-pdf");
       const studyPdfButton = document.querySelector("#study-pdf");
-      const studyCount = document.querySelector("#study-count");
       const printArea = document.querySelector("#print-area");
       const LEGACY_STORAGE_KEY = "english-learning-words";
       let supabaseClient;
@@ -785,7 +809,6 @@
         selectionCount.textContent = `${selectedCount} ${selectedCount === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`;
         exportPdfButton.disabled = selectedCount === 0;
         const unknownCount = words.filter((word) => !word.known).length;
-        studyCount.textContent = `${unknownCount} ${unknownCount === 1 ? "palabra para estudiar" : "palabras para estudiar"}`;
         studyPdfButton.disabled = unknownCount === 0;
       }
 
@@ -797,7 +820,7 @@
         if (!knownColumnAvailable) return;
         const nextKnown = !word.known;
         button.disabled = true;
-        button.textContent = "Guardando…";
+        button.setAttribute("aria-busy", "true");
         try {
           const { error } = await supabaseClient
             .from("words")
@@ -808,16 +831,15 @@
           button.dataset.known = String(word.known);
           button.setAttribute("aria-pressed", String(word.known));
           button.setAttribute("aria-label", `${getKnowledgeLabel(word.known)}: ${word.english}`);
-          button.textContent = getKnowledgeLabel(word.known);
           updateSelectionCount();
           databaseStatus.textContent = "Estado guardado.";
         } catch (error) {
-          button.textContent = getKnowledgeLabel(word.known);
           databaseStatus.textContent = isMissingKnownColumn(error)
             ? "Falta aplicar la actualización de la base de datos. Ejecuta el archivo de migración y vuelve a entrar."
             : "No se pudo guardar el estado. Comprueba tu conexión e inténtalo otra vez.";
           console.error("Error al guardar el estado de aprendizaje:", error);
         } finally {
+          button.removeAttribute("aria-busy");
           button.disabled = false;
         }
       }
@@ -922,7 +944,6 @@
           knowledgeButton.dataset.known = String(word.known);
           knowledgeButton.setAttribute("aria-pressed", String(word.known));
           knowledgeButton.setAttribute("aria-label", `${getKnowledgeLabel(word.known)}: ${word.english}`);
-          knowledgeButton.textContent = getKnowledgeLabel(word.known);
           knowledgeButton.disabled = !knownColumnAvailable;
           if (!knownColumnAvailable) {
             knowledgeButton.title = "Aplica la actualización de la base de datos para guardar este estado.";
