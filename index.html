@@ -43,7 +43,8 @@
 
       button,
       input,
-      textarea {
+      textarea,
+      select {
         font: inherit;
       }
 
@@ -131,6 +132,11 @@
         gap: 7px;
       }
 
+      .auth-fields {
+        display: grid;
+        gap: 14px;
+      }
+
       .field label {
         font-size: 0.9rem;
         font-weight: 800;
@@ -138,6 +144,7 @@
 
       .field input,
       .field textarea,
+      .field select,
       .search-box input,
       .notes-input {
         width: 100%;
@@ -150,12 +157,14 @@
 
       .field input,
       .field textarea,
+      .field select,
       .search-box input {
         padding: 11px 13px;
       }
 
       .field input:focus,
       .field textarea:focus,
+      .field select:focus,
       .search-box input:focus,
       .notes-input:focus {
         border-color: #7862ca;
@@ -210,25 +219,9 @@
         font-weight: 700;
       }
 
-      .connection-card {
+      .auth-card {
         margin-bottom: 24px;
         padding: 23px;
-      }
-
-      .connection-card ol {
-        padding-left: 22px;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-
-      .connection-card a {
-        color: #51409b;
-        font-weight: 800;
-      }
-
-      .connection-fields {
-        display: grid;
-        gap: 14px;
       }
 
       .auth-actions,
@@ -260,6 +253,38 @@
       .user-bar {
         justify-content: space-between;
         margin: 0 0 16px;
+      }
+
+      .selection-tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 23px;
+        border-bottom: 1px solid #edf0f7;
+      }
+
+      .selection-count {
+        margin: 0;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .selection-hint {
+        margin: 0 auto 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .row-select {
+        width: 20px;
+        height: 20px;
+        accent-color: #7862ca;
+        cursor: pointer;
+      }
+
+      .print-area {
+        display: none;
       }
 
       .list-card {
@@ -313,7 +338,7 @@
 
       table {
         width: 100%;
-        min-width: 780px;
+        min-width: 860px;
         border-collapse: collapse;
         text-align: left;
       }
@@ -378,7 +403,7 @@
           padding: 18px;
         }
 
-        .connection-card {
+        .auth-card {
           padding: 18px;
         }
 
@@ -399,6 +424,68 @@
         .form-actions {
           align-items: flex-start;
           flex-direction: column;
+        }
+
+        .selection-tools {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .selection-hint {
+          margin: 0;
+        }
+      }
+
+      @media print {
+        @page {
+          size: A4;
+          margin: 15mm;
+        }
+
+        body {
+          min-width: 0;
+          padding: 0;
+          background: white;
+        }
+
+        body > .page {
+          width: auto;
+          margin: 0;
+        }
+
+        body > .page > :not(#print-area) {
+          display: none !important;
+        }
+
+        .print-area {
+          display: block !important;
+          color: #111;
+          font-family: Arial, sans-serif;
+        }
+
+        .print-area h1 {
+          margin-bottom: 18px;
+          font-size: 22px;
+        }
+
+        .print-area table {
+          width: 100%;
+          min-width: 0;
+          border-collapse: collapse;
+        }
+
+        .print-area th,
+        .print-area td {
+          padding: 8px;
+          border: 1px solid #555;
+          color: #111;
+          font-size: 10pt;
+          vertical-align: top;
+        }
+
+        .print-area th {
+          background: #e8eef5 !important;
+          print-color-adjust: exact;
         }
       }
     </style>
@@ -421,37 +508,13 @@
         <p>Guarda palabras nuevas y haz crecer tu inglés, una palabra cada día.</p>
       </header>
 
-      <section class="card connection-card" id="connection-card" aria-labelledby="connection-title">
-        <h2 class="section-heading" id="connection-title">
-          <span class="sticker" aria-hidden="true" style="background: var(--lilac)">☁️</span>
-          Conectar con Supabase
+      <section class="card auth-card" id="auth-card" aria-labelledby="auth-title">
+        <h2 class="section-heading" id="auth-title">
+          <span class="sticker" aria-hidden="true" style="background: var(--lilac)">🔐</span>
+          Accede a tu lista
         </h2>
-        <div id="setup-help">
-          <p>Para guardar tus palabras y notas de forma privada, configura tu proyecto gratuito de Supabase:</p>
-          <ol>
-            <li>Crea un proyecto gratuito en Supabase.</li>
-            <li>Abre el SQL Editor del proyecto y ejecuta el <a href="./supabase-setup.sql" target="_blank" rel="noopener">script de configuración de la base de datos</a>.</li>
-            <li>Copia la URL del proyecto y su clave publicable (anon) desde Project Settings → API.</li>
-            <li>En Authentication → URL Configuration, configura Site URL y añade a Redirect URLs: <code>https://xellsdev.github.io/mywordlist/</code>.</li>
-          </ol>
-          <p class="hint">No introduzcas nunca la clave "service_role". Esta aplicación usa inicio de sesión y políticas privadas por usuario.</p>
-        </div>
-        <form id="config-form" class="connection-fields">
-          <div class="field">
-            <label for="supabase-url">URL del proyecto</label>
-            <input id="supabase-url" type="url" placeholder="https://tu-proyecto.supabase.co" required>
-          </div>
-          <div class="field">
-            <label for="supabase-key">Clave publicable (anon)</label>
-            <input id="supabase-key" type="password" autocomplete="off" placeholder="sb_publishable_… o clave anon" required>
-          </div>
-          <div class="auth-actions">
-            <button class="add-button" type="submit">Guardar conexión</button>
-          </div>
-        </form>
-        <button class="secondary-button" id="edit-config" type="button" hidden>Cambiar proyecto</button>
         <form id="auth-form" hidden>
-          <div class="connection-fields">
+          <div class="auth-fields">
             <div class="field">
               <label for="auth-email">Correo electrónico</label>
               <input id="auth-email" type="email" autocomplete="email" placeholder="tu@correo.com" required>
@@ -467,14 +530,13 @@
             <button class="secondary-button" id="resend-confirmation" type="button">Reenviar correo de confirmación</button>
           </div>
         </form>
-        <p class="status" id="connection-status" role="status" aria-live="polite"></p>
+        <p class="status" id="auth-status" role="status" aria-live="polite"></p>
       </section>
 
       <div class="user-bar" id="user-bar" hidden>
         <span id="user-email"></span>
         <div class="auth-actions">
           <button class="secondary-button" id="import-legacy" type="button" hidden>Importar palabras guardadas en este navegador</button>
-          <button class="secondary-button" id="edit-project-user" type="button">Cambiar proyecto</button>
           <button class="secondary-button" id="sign-out" type="button">Cerrar sesión</button>
         </div>
       </div>
@@ -487,13 +549,20 @@
         <form id="word-form">
           <div class="form-grid">
             <div class="field">
-              <label for="english">Palabra en inglés *</label>
-              <input id="english" name="english" autocomplete="off" placeholder="Ej.: butterfly" required>
+              <label for="source-language">Quiero añadir una palabra en</label>
+              <select id="source-language" name="source-language">
+                <option value="en">Inglés</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="word-term" id="word-term-label">Palabra en inglés *</label>
+              <input id="word-term" name="word-term" autocomplete="off" placeholder="Ej.: butterfly" required>
             </div>
           </div>
           <div class="form-actions">
             <button class="add-button" type="submit">＋ Añadir</button>
-            <p class="hint">La palabra se consulta en línea para completar la traducción y el significado.</p>
+            <p class="hint">Se completarán automáticamente la traducción y el significado en inglés.</p>
           </div>
           <p class="status" id="form-status" role="status" aria-live="polite"></p>
         </form>
@@ -510,11 +579,19 @@
             <input id="search" type="search" placeholder="Buscar en inglés o español…" aria-label="Buscar palabras en inglés o español">
           </label>
         </div>
+        <div class="selection-tools">
+          <p class="selection-count" id="selection-count">0 palabras seleccionadas</p>
+          <p class="selection-hint">En el diálogo, elige «Guardar como PDF».</p>
+          <button class="secondary-button" id="export-pdf" type="button" disabled>Generar PDF</button>
+        </div>
         <p class="status" id="database-status" role="status" aria-live="polite" style="padding: 0 23px;"></p>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th scope="col" aria-label="Seleccionar filas">
+                  <input class="row-select" id="select-visible" type="checkbox" aria-label="Seleccionar todas las palabras visibles">
+                </th>
                 <th scope="col">Inglés</th>
                 <th scope="col">Español</th>
                 <th scope="col">Significado en inglés</th>
@@ -529,11 +606,11 @@
           </div>
         </div>
       </section>
+      <section class="print-area" id="print-area" aria-label="Palabras seleccionadas para PDF"></section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      const CONFIG_KEY = "english-learning-supabase-config";
       const APP_URL = "https://xellsdev.github.io/mywordlist/";
       const DEFAULT_SUPABASE_CONFIG = {
         url: "https://rlxuavmxbcwodjtzckfo.supabase.co",
@@ -545,23 +622,29 @@
       const count = document.querySelector("#word-count");
       const emptyState = document.querySelector("#empty-state");
       const formStatus = document.querySelector("#form-status");
-      const connectionCard = document.querySelector("#connection-card");
-      const setupHelp = document.querySelector("#setup-help");
-      const configForm = document.querySelector("#config-form");
+      const authCard = document.querySelector("#auth-card");
       const authForm = document.querySelector("#auth-form");
-      const connectionStatus = document.querySelector("#connection-status");
+      const authStatus = document.querySelector("#auth-status");
       const databaseStatus = document.querySelector("#database-status");
       const userBar = document.querySelector("#user-bar");
       const addCard = document.querySelector("#app-add-card");
       const listCard = document.querySelector("#app-list-card");
       const importLegacyButton = document.querySelector("#import-legacy");
+      const sourceLanguage = document.querySelector("#source-language");
+      const wordTerm = document.querySelector("#word-term");
+      const wordTermLabel = document.querySelector("#word-term-label");
+      const selectionCount = document.querySelector("#selection-count");
+      const selectVisible = document.querySelector("#select-visible");
+      const exportPdfButton = document.querySelector("#export-pdf");
+      const printArea = document.querySelector("#print-area");
       const LEGACY_STORAGE_KEY = "english-learning-words";
       let supabaseClient;
       let words = [];
+      const selectedWordIds = new Set();
 
       function showApp(session) {
         const signedIn = Boolean(session);
-        connectionCard.hidden = signedIn;
+        authCard.hidden = signedIn;
         userBar.hidden = !signedIn;
         addCard.hidden = !signedIn;
         listCard.hidden = !signedIn;
@@ -570,6 +653,7 @@
           importLegacyButton.hidden = !localStorage.getItem(LEGACY_STORAGE_KEY);
         } else {
           words = [];
+          selectedWordIds.clear();
           importLegacyButton.hidden = true;
           renderWords();
         }
@@ -578,13 +662,13 @@
       document.querySelector("#resend-confirmation").addEventListener("click", async () => {
         const email = document.querySelector("#auth-email").value.trim();
         if (!email) {
-          connectionStatus.textContent = "Escribe tu correo para reenviar la confirmación.";
+          authStatus.textContent = "Escribe tu correo para reenviar la confirmación.";
           return;
         }
 
         const resendButton = document.querySelector("#resend-confirmation");
         resendButton.disabled = true;
-        connectionStatus.textContent = "Enviando un nuevo correo de confirmación…";
+        authStatus.textContent = "Enviando un nuevo correo de confirmación…";
         try {
           const { error } = await supabaseClient.auth.resend({
             type: "signup",
@@ -592,9 +676,9 @@
             options: { emailRedirectTo: APP_URL }
           });
           if (error) throw error;
-          connectionStatus.textContent = "Correo enviado. El nuevo enlace abrirá My word List.";
+          authStatus.textContent = "Correo enviado. El nuevo enlace abrirá My word List.";
         } catch (error) {
-          connectionStatus.textContent = error instanceof Error ? error.message : "No se pudo reenviar el correo.";
+          authStatus.textContent = error instanceof Error ? error.message : "No se pudo reenviar el correo.";
           console.error("Error al reenviar la confirmación:", error);
         } finally {
           resendButton.disabled = false;
@@ -608,7 +692,7 @@
           .select("id, english, spanish, meaning, notes")
           .order("english", { ascending: true });
         if (error) {
-          databaseStatus.textContent = "No se pudieron cargar las palabras. Comprueba que ejecutaste el script SQL y que tienes conexión.";
+          databaseStatus.textContent = "No se pudieron cargar las palabras. Comprueba tu conexión e inténtalo otra vez.";
           console.error("Error al cargar las palabras:", error);
           throw error;
         }
@@ -616,25 +700,16 @@
         renderWords();
       }
 
-      async function initializeConnection(url, key, saveConfig) {
+      async function initializeConnection() {
         if (!window.supabase?.createClient) {
-          throw new Error("No se pudo cargar Supabase. Comprueba tu conexión a internet y recarga la página.");
+          throw new Error("No se pudo cargar el servicio de acceso. Comprueba tu conexión e inténtalo de nuevo.");
         }
-        const parsedUrl = new URL(url);
-        if (parsedUrl.protocol !== "https:" || !parsedUrl.hostname.endsWith(".supabase.co")) {
-          throw new Error("Introduce una URL válida de proyecto Supabase (https://…supabase.co).");
-        }
-        if (!key.trim()) throw new Error("Introduce la clave publicable del proyecto.");
-
-        supabaseClient = window.supabase.createClient(parsedUrl.origin, key.trim());
-        if (saveConfig) {
-          localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: parsedUrl.origin, key: key.trim() }));
-        }
-        setupHelp.hidden = true;
-        configForm.hidden = true;
-        document.querySelector("#edit-config").hidden = false;
+        supabaseClient = window.supabase.createClient(
+          DEFAULT_SUPABASE_CONFIG.url,
+          DEFAULT_SUPABASE_CONFIG.key
+        );
         authForm.hidden = false;
-        connectionStatus.textContent = "Conexión configurada. Inicia sesión o crea tu cuenta.";
+        authStatus.textContent = "";
 
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) throw error;
@@ -651,57 +726,74 @@
         return cell;
       }
 
-      async function lookUpWord(english) {
+      function updateSelectionCount() {
+        const selectedCount = selectedWordIds.size;
+        selectionCount.textContent = `${selectedCount} ${selectedCount === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`;
+        exportPdfButton.disabled = selectedCount === 0;
+      }
+
+      async function translateWord(term, languagePair) {
+        const translationUrl = `https://api.mymemory.translated.net/get?${new URLSearchParams({
+          q: term,
+          langpair: languagePair
+        })}`;
+        let response;
+        try {
+          response = await fetch(translationUrl);
+        } catch {
+          throw new Error("No se pudo conectar con el traductor. Comprueba tu conexión e inténtalo de nuevo.");
+        }
+        if (!response.ok) {
+          throw new Error("No se pudo consultar el traductor. Inténtalo de nuevo.");
+        }
+        const translation = await response.json();
+        const translatedText = translation.responseData?.translatedText?.trim();
+        if (!translatedText || translation.responseStatus !== 200) {
+          throw new Error("No se pudo traducir la palabra. Inténtalo de nuevo.");
+        }
+        return translatedText;
+      }
+
+      async function findEnglishDefinition(english) {
         const dictionaryUrl = `https://api.datamuse.com/words?${new URLSearchParams({
           sp: english,
           md: "d",
           max: "10"
         })}`;
-        const translationUrl = `https://api.mymemory.translated.net/get?${new URLSearchParams({
-          q: english,
-          langpair: "en|es"
-        })}`;
-        const [dictionaryResult, translationResult] = await Promise.allSettled([
-          fetch(dictionaryUrl),
-          fetch(translationUrl)
-        ]);
-
-        if (dictionaryResult.status === "rejected") {
+        let response;
+        try {
+          response = await fetch(dictionaryUrl);
+        } catch {
           throw new Error("No se pudo conectar con el diccionario. Comprueba tu conexión e inténtalo de nuevo.");
         }
-        if (translationResult.status === "rejected") {
-          throw new Error("No se pudo conectar con el traductor. Comprueba tu conexión e inténtalo de nuevo.");
-        }
-
-        const dictionaryResponse = dictionaryResult.value;
-        const translationResponse = translationResult.value;
-        if (!dictionaryResponse.ok) {
+        if (!response.ok) {
           throw new Error("El diccionario no está disponible ahora. Inténtalo de nuevo más tarde.");
         }
-        if (!translationResponse.ok) {
-          throw new Error("No se pudo consultar el traductor. Inténtalo de nuevo.");
-        }
-
-        const dictionary = await dictionaryResponse.json();
-        const translation = await translationResponse.json();
+        const dictionary = await response.json();
         const exactMatch = dictionary.find((entry) =>
           entry.word?.localeCompare(english, "en", { sensitivity: "base" }) === 0
         );
         const definition = exactMatch?.defs
           ?.map((item) => item.replace(/^[a-z]+\t/i, "").trim())
           .find(Boolean);
-        const spanish = translation.responseData?.translatedText?.trim();
-
         if (!definition) {
           throw new Error(`No encontramos un significado para "${english}".`);
         }
-        if (!spanish || translation.responseStatus !== 200) {
-          throw new Error("No se pudo traducir la palabra. Inténtalo de nuevo.");
-        }
+        return definition;
+      }
 
+      async function lookUpWord(term, language) {
+        const english = language === "es"
+          ? await translateWord(term, "es|en")
+          : term;
+        const spanish = language === "es"
+          ? term
+          : await translateWord(term, "en|es");
+        const meaning = await findEnglishDefinition(english);
         return {
+          english,
           spanish,
-          meaning: definition
+          meaning
         };
       }
 
@@ -714,6 +806,19 @@
         list.replaceChildren();
         for (const word of visibleWords) {
           const row = document.createElement("tr");
+          const selectCell = document.createElement("td");
+          const checkbox = document.createElement("input");
+          checkbox.className = "row-select";
+          checkbox.type = "checkbox";
+          checkbox.checked = selectedWordIds.has(word.id);
+          checkbox.setAttribute("aria-label", `Seleccionar ${word.english}`);
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) selectedWordIds.add(word.id);
+            else selectedWordIds.delete(word.id);
+            renderWords();
+          });
+          selectCell.append(checkbox);
+          row.append(selectCell);
           row.append(
             makeCell(word.english, "english-word"),
             makeCell(word.spanish),
@@ -748,6 +853,11 @@
           list.append(row);
         }
 
+        const selectedVisibleCount = visibleWords.filter((word) => selectedWordIds.has(word.id)).length;
+        selectVisible.checked = visibleWords.length > 0 && selectedVisibleCount === visibleWords.length;
+        selectVisible.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleWords.length;
+        selectVisible.disabled = visibleWords.length === 0;
+        updateSelectionCount();
         count.textContent = String(words.length);
         emptyState.hidden = visibleWords.length > 0;
         if (words.length > 0 && visibleWords.length === 0) {
@@ -760,29 +870,31 @@
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const englishInput = document.querySelector("#english");
+        const termInput = document.querySelector("#word-term");
         const addButton = form.querySelector('button[type="submit"]');
-        const english = englishInput.value.trim();
-        if (!english) return;
+        const term = termInput.value.trim();
+        const language = sourceLanguage.value;
+        if (!term) return;
 
         addButton.disabled = true;
         addButton.textContent = "Buscando…";
         formStatus.textContent = "Buscando traducción y significado…";
         try {
-          const wordData = await lookUpWord(english);
+          const wordData = await lookUpWord(term, language);
           const { data: word, error } = await supabaseClient
             .from("words")
-            .insert({ english, ...wordData, notes: "" })
+            .insert({ ...wordData, notes: "" })
             .select("id, english, spanish, meaning, notes")
             .single();
           if (error) throw error;
           words.push(word);
 
           form.reset();
-          formStatus.textContent = `Palabra añadida: "${english}".`;
+          updateWordTermLabel();
+          formStatus.textContent = `Palabra añadida: "${term}".`;
           search.value = "";
           renderWords();
-          englishInput.focus();
+          termInput.focus();
         } catch (error) {
           formStatus.textContent = error instanceof Error
             ? error.message
@@ -794,11 +906,66 @@
         }
       });
 
+      function updateWordTermLabel() {
+        const spanish = sourceLanguage.value === "es";
+        wordTermLabel.textContent = spanish ? "Palabra en español *" : "Palabra en inglés *";
+        wordTerm.placeholder = spanish ? "Ej.: mariposa" : "Ej.: butterfly";
+      }
+
+      sourceLanguage.addEventListener("change", updateWordTermLabel);
+
+      selectVisible.addEventListener("change", () => {
+        const query = search.value.trim().toLocaleLowerCase("es");
+        const visibleWords = words.filter((word) =>
+          `${word.english} ${word.spanish}`.toLocaleLowerCase("es").includes(query)
+        );
+        for (const word of visibleWords) {
+          if (selectVisible.checked) selectedWordIds.add(word.id);
+          else selectedWordIds.delete(word.id);
+        }
+        renderWords();
+      });
+
+      exportPdfButton.addEventListener("click", () => {
+        const selectedWords = words
+          .filter((word) => selectedWordIds.has(word.id))
+          .sort((a, b) => a.english.localeCompare(b.english, "en", { sensitivity: "base" }));
+        if (!selectedWords.length) return;
+
+        printArea.replaceChildren();
+        const heading = document.createElement("h1");
+        heading.textContent = "My word List";
+        const subtitle = document.createElement("p");
+        subtitle.textContent = `${selectedWords.length} ${selectedWords.length === 1 ? "palabra seleccionada" : "palabras seleccionadas"}`;
+        const table = document.createElement("table");
+        const header = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        for (const title of ["Inglés", "Español", "Significado en inglés", "Mis notas"]) {
+          const cell = document.createElement("th");
+          cell.textContent = title;
+          headerRow.append(cell);
+        }
+        header.append(headerRow);
+        const body = document.createElement("tbody");
+        for (const word of selectedWords) {
+          const row = document.createElement("tr");
+          for (const value of [word.english, word.spanish, word.meaning, word.notes]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          }
+          body.append(row);
+        }
+        table.append(header, body);
+        printArea.append(heading, subtitle, table);
+        window.print();
+      });
+
       async function authenticate(action) {
         if (!authForm.reportValidity()) return;
         const email = document.querySelector("#auth-email").value.trim();
         const password = document.querySelector("#auth-password").value;
-        connectionStatus.textContent = "Conectando…";
+        authStatus.textContent = "Conectando…";
         document.querySelector("#sign-in").disabled = true;
         document.querySelector("#sign-up").disabled = true;
         try {
@@ -811,58 +978,20 @@
             });
           if (result.error) throw result.error;
           if (action === "sign-up" && !result.data.session) {
-            connectionStatus.textContent = "Cuenta creada. Confirma el correo para iniciar sesión. Si el enlace anterior llevaba a localhost, vuelve a enviar el correo desde aquí.";
+            authStatus.textContent = "Cuenta creada. Confirma el correo para iniciar sesión. Si el enlace anterior llevaba a localhost, vuelve a enviar el correo desde aquí.";
           } else if (result.data.session) {
             showApp(result.data.session);
-            connectionStatus.textContent = "";
+            authStatus.textContent = "";
             await loadWords();
           }
         } catch (error) {
-          connectionStatus.textContent = error instanceof Error ? error.message : "No se pudo iniciar sesión.";
-          console.error("Error de autenticación Supabase:", error);
+          authStatus.textContent = error instanceof Error ? error.message : "No se pudo iniciar sesión.";
+          console.error("Error de autenticación:", error);
         } finally {
           document.querySelector("#sign-in").disabled = false;
           document.querySelector("#sign-up").disabled = false;
         }
       }
-
-      configForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        connectionStatus.textContent = "";
-        try {
-          await initializeConnection(
-            document.querySelector("#supabase-url").value.trim(),
-            document.querySelector("#supabase-key").value,
-            true
-          );
-        } catch (error) {
-          connectionStatus.textContent = error instanceof Error ? error.message : "No se pudo configurar Supabase.";
-          console.error("Error de configuración Supabase:", error);
-        }
-      });
-
-      async function changeProject() {
-        try {
-          if (supabaseClient) {
-            const { error } = await supabaseClient.auth.signOut();
-            if (error) throw error;
-          }
-          localStorage.removeItem(CONFIG_KEY);
-          supabaseClient = undefined;
-          showApp(null);
-          setupHelp.hidden = false;
-          configForm.hidden = false;
-          authForm.hidden = true;
-          document.querySelector("#edit-config").hidden = true;
-          connectionStatus.textContent = "Configura tu proyecto Supabase.";
-        } catch (error) {
-          connectionStatus.textContent = "No se pudo cerrar la sesión para cambiar de proyecto.";
-          console.error("Error al cambiar de proyecto:", error);
-        }
-      }
-
-      document.querySelector("#edit-config").addEventListener("click", changeProject);
-      document.querySelector("#edit-project-user").addEventListener("click", changeProject);
 
       document.querySelector("#sign-in").addEventListener("click", () => authenticate("sign-in"));
       document.querySelector("#sign-up").addEventListener("click", () => authenticate("sign-up"));
@@ -871,7 +1000,7 @@
           const { error } = await supabaseClient.auth.signOut();
           if (error) throw error;
           showApp(null);
-          connectionStatus.textContent = "Has cerrado sesión.";
+          authStatus.textContent = "Has cerrado sesión.";
         } catch (error) {
           databaseStatus.textContent = "No se pudo cerrar la sesión.";
           console.error("Error al cerrar sesión:", error);
@@ -921,21 +1050,18 @@
       });
 
       search.addEventListener("input", renderWords);
+      updateWordTermLabel();
       renderWords();
 
       (async () => {
         try {
-          const savedConfig = localStorage.getItem(CONFIG_KEY);
-          const config = savedConfig ? JSON.parse(savedConfig) : DEFAULT_SUPABASE_CONFIG;
-          document.querySelector("#supabase-url").value = config.url;
-          document.querySelector("#supabase-key").value = config.key;
-          connectionStatus.textContent = "Conectando con Supabase…";
-          await initializeConnection(config.url, config.key, false);
+          authStatus.textContent = "Preparando el acceso…";
+          await initializeConnection();
         } catch (error) {
-          connectionStatus.textContent = error instanceof Error
+          authStatus.textContent = error instanceof Error
             ? error.message
-            : "No se pudo conectar con Supabase.";
-          console.error("Error al conectar con Supabase:", error);
+            : "No se pudo preparar el acceso.";
+          console.error("Error al preparar el acceso:", error);
         }
       })();
     </script>
