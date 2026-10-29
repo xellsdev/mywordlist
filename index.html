@@ -432,6 +432,7 @@
             <li>Crea un proyecto gratuito en Supabase.</li>
             <li>Abre el SQL Editor del proyecto y ejecuta el <a href="./supabase-setup.sql" target="_blank" rel="noopener">script de configuración de la base de datos</a>.</li>
             <li>Copia la URL del proyecto y su clave publicable (anon) desde Project Settings → API.</li>
+            <li>En Authentication → URL Configuration, configura Site URL y añade a Redirect URLs: <code>https://xellsdev.github.io/mywordlist/</code>.</li>
           </ol>
           <p class="hint">No introduzcas nunca la clave "service_role". Esta aplicación usa inicio de sesión y políticas privadas por usuario.</p>
         </div>
@@ -463,6 +464,7 @@
           <div class="auth-actions">
             <button class="add-button" id="sign-in" type="button">Iniciar sesión</button>
             <button class="secondary-button" id="sign-up" type="button">Crear cuenta</button>
+            <button class="secondary-button" id="resend-confirmation" type="button" hidden>Reenviar correo de confirmación</button>
           </div>
         </form>
         <p class="status" id="connection-status" role="status" aria-live="polite"></p>
@@ -532,6 +534,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
       const CONFIG_KEY = "english-learning-supabase-config";
+      const APP_URL = "https://xellsdev.github.io/mywordlist/";
       const form = document.querySelector("#word-form");
       const list = document.querySelector("#word-list");
       const search = document.querySelector("#search");
@@ -567,6 +570,32 @@
           renderWords();
         }
       }
+
+      document.querySelector("#resend-confirmation").addEventListener("click", async () => {
+        const email = document.querySelector("#auth-email").value.trim();
+        if (!email) {
+          connectionStatus.textContent = "Escribe tu correo para reenviar la confirmación.";
+          return;
+        }
+
+        const resendButton = document.querySelector("#resend-confirmation");
+        resendButton.disabled = true;
+        connectionStatus.textContent = "Enviando un nuevo correo de confirmación…";
+        try {
+          const { error } = await supabaseClient.auth.resend({
+            type: "signup",
+            email,
+            options: { emailRedirectTo: APP_URL }
+          });
+          if (error) throw error;
+          connectionStatus.textContent = "Correo enviado. El nuevo enlace abrirá My word List.";
+        } catch (error) {
+          connectionStatus.textContent = error instanceof Error ? error.message : "No se pudo reenviar el correo.";
+          console.error("Error al reenviar la confirmación:", error);
+        } finally {
+          resendButton.disabled = false;
+        }
+      });
 
       async function loadWords() {
         databaseStatus.textContent = "";
@@ -756,10 +785,15 @@
         try {
           const result = action === "sign-in"
             ? await supabaseClient.auth.signInWithPassword({ email, password })
-            : await supabaseClient.auth.signUp({ email, password });
+            : await supabaseClient.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: APP_URL }
+            });
           if (result.error) throw result.error;
           if (action === "sign-up" && !result.data.session) {
-            connectionStatus.textContent = "Cuenta creada. Revisa tu correo para confirmar el registro y luego inicia sesión.";
+            document.querySelector("#resend-confirmation").hidden = false;
+            connectionStatus.textContent = "Cuenta creada. Confirma el correo para iniciar sesión. Si el enlace anterior llevaba a localhost, vuelve a enviar el correo desde aquí.";
           } else if (result.data.session) {
             showApp(result.data.session);
             connectionStatus.textContent = "";
