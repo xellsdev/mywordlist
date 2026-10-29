@@ -313,6 +313,7 @@
         border-radius: 50%;
         background: white;
         content: "";
+        pointer-events: none;
         transition: transform 140ms ease;
       }
 
@@ -321,7 +322,7 @@
       }
 
       .knowledge-button:disabled {
-        cursor: wait;
+        cursor: not-allowed;
         opacity: 0.65;
       }
 
@@ -760,7 +761,7 @@
             .order("english", { ascending: true }));
           if (!error) {
             words = data.map((word) => ({ ...word, known: false }));
-            databaseStatus.textContent = "Para guardar si te sabes cada palabra, aplica la actualización incluida en el archivo de migración y vuelve a entrar.";
+            databaseStatus.textContent = "Para activar el interruptor, ejecuta supabase-migration-known.sql en el editor SQL de la base de datos y vuelve a entrar.";
             renderWords();
             return;
           }
@@ -834,13 +835,17 @@
           updateSelectionCount();
           databaseStatus.textContent = "Estado guardado.";
         } catch (error) {
-          databaseStatus.textContent = isMissingKnownColumn(error)
-            ? "Falta aplicar la actualización de la base de datos. Ejecuta el archivo de migración y vuelve a entrar."
-            : "No se pudo guardar el estado. Comprueba tu conexión e inténtalo otra vez.";
+          if (isMissingKnownColumn(error)) {
+            knownColumnAvailable = false;
+            databaseStatus.textContent = "Para activar el interruptor, ejecuta supabase-migration-known.sql en el editor SQL de la base de datos y vuelve a entrar.";
+            renderWords();
+          } else {
+            databaseStatus.textContent = "No se pudo guardar el estado. Comprueba tu conexión e inténtalo otra vez.";
+          }
           console.error("Error al guardar el estado de aprendizaje:", error);
         } finally {
           button.removeAttribute("aria-busy");
-          button.disabled = false;
+          button.disabled = !knownColumnAvailable;
         }
       }
 
@@ -1068,7 +1073,7 @@
         const table = document.createElement("table");
         const header = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        for (const title of ["Inglés", "Español", "Significado en inglés", "¿Te la sabes?", "Mis notas"]) {
+        for (const title of ["Inglés", "Español", "Significado en inglés", "Mis notas"]) {
           const cell = document.createElement("th");
           cell.textContent = title;
           headerRow.append(cell);
@@ -1077,7 +1082,7 @@
         const body = document.createElement("tbody");
         for (const word of sortedWords) {
           const row = document.createElement("tr");
-          for (const value of [word.english, word.spanish, word.meaning, getKnowledgeLabel(word.known), word.notes]) {
+          for (const value of [word.english, word.spanish, word.meaning, word.notes]) {
             const cell = document.createElement("td");
             cell.textContent = value;
             row.append(cell);
