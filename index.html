@@ -535,6 +535,10 @@
     <script>
       const CONFIG_KEY = "english-learning-supabase-config";
       const APP_URL = "https://xellsdev.github.io/mywordlist/";
+      const DEFAULT_SUPABASE_CONFIG = {
+        url: "https://rlxuavmxbcwodjtzckfo.supabase.co",
+        key: "sb_publishable_bpeeV2okeo7rJp3gVX8Ixw_yX0yiero"
+      };
       const form = document.querySelector("#word-form");
       const list = document.querySelector("#word-list");
       const search = document.querySelector("#search");
@@ -907,12 +911,11 @@
       (async () => {
         try {
           const savedConfig = localStorage.getItem(CONFIG_KEY);
-          if (savedConfig) {
-            const config = JSON.parse(savedConfig);
-            document.querySelector("#supabase-url").value = config.url;
-            document.querySelector("#supabase-key").value = config.key;
-            await initializeConnection(config.url, config.key, false);
-          }
+          const config = savedConfig ? JSON.parse(savedConfig) : DEFAULT_SUPABASE_CONFIG;
+          document.querySelector("#supabase-url").value = config.url;
+          document.querySelector("#supabase-key").value = config.key;
+          connectionStatus.textContent = "Conectando con Supabase…";
+          await initializeConnection(config.url, config.key, false);
         } catch (error) {
           connectionStatus.textContent = error instanceof Error
             ? error.message
