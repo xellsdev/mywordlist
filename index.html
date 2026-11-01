@@ -391,9 +391,12 @@
 
       table {
         width: 100%;
-        min-width: 1010px;
         border-collapse: collapse;
         text-align: left;
+      }
+
+      .word-data-cell {
+        min-width: 8em;
       }
 
       th,
@@ -428,10 +431,51 @@
         font-weight: 900;
       }
 
-      .notes-input {
+      .word-display {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .word-editor {
+        width: 100%;
         min-height: 40px;
         padding: 8px 10px;
+        border: 2px solid #d6dbea;
+        border-radius: 12px;
+        color: var(--ink);
+        font: inherit;
         resize: vertical;
+      }
+
+      .row-actions {
+        min-width: 115px;
+        white-space: nowrap;
+      }
+
+      .edit-button {
+        min-width: 38px;
+        min-height: 38px;
+        padding: 5px 8px;
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        background: var(--yellow);
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 1.1rem;
+      }
+
+      .save-edit-button {
+        background: var(--green);
+      }
+
+      .cancel-edit-button {
+        margin-left: 5px;
+        background: var(--pink);
+      }
+
+      .edit-button:disabled {
+        cursor: wait;
+        opacity: 0.65;
       }
 
       .empty-state {
@@ -651,6 +695,7 @@
                 <th scope="col">Significado en inglés</th>
                 <th scope="col">¿Te la sabes?</th>
                 <th scope="col">Mis notas</th>
+                <th scope="col" aria-label="Editar palabra"></th>
               </tr>
             </thead>
             <tbody id="word-list"></tbody>
@@ -698,6 +743,7 @@
       let words = [];
       let knownColumnAvailable = true;
       const selectedWordIds = new Set();
+      const editingWordIds = new Set();
 
       function showApp(session) {
         const signedIn = Boolean(session);
@@ -803,6 +849,47 @@
         cell.textContent = text;
         if (className) cell.className = className;
         return cell;
+      }
+
+      function makeEditableCell(word, field, label) {
+        const cell = document.createElement("td");
+        cell.className = "word-data-cell";
+        const display = document.createElement("span");
+        display.className = "word-display";
+        display.textContent = word[field] ?? "";
+        const editor = document.createElement("textarea");
+        editor.className = "word-editor";
+        editor.setAttribute("aria-label", `${label} para ${word.english}`);
+        editor.value = word[field] ?? "";
+        editor.hidden = !editingWordIds.has(word.id);
+        display.hidden = editingWordIds.has(word.id);
+        cell.append(display, editor);
+        return cell;
+      }
+
+      async function saveWordEdits(word, row, actionCell) {
+        const saveButton = actionCell.querySelector(".save-edit-button");
+        const values = {
+          spanish: row.querySelector('[aria-label^="Español para"]').value.trim(),
+          meaning: row.querySelector('[aria-label^="Significado en inglés para"]').value.trim(),
+          notes: row.querySelector('[aria-label^="Notas para"]').value.trim()
+        };
+        saveButton.disabled = true;
+        try {
+          const { error } = await supabaseClient
+            .from("words")
+            .update(values)
+            .eq("id", word.id);
+          if (error) throw error;
+          Object.assign(word, values);
+          editingWordIds.delete(word.id);
+          databaseStatus.textContent = "Palabra actualizada.";
+          renderWords();
+        } catch (error) {
+          databaseStatus.textContent = "No se pudieron guardar los cambios. Comprueba tu conexión e inténtalo otra vez.";
+          console.error("Error al guardar los cambios de la palabra:", error);
+          saveButton.disabled = false;
+        }
       }
 
       function updateSelectionCount() {
@@ -954,9 +1041,9 @@
           selectCell.append(checkbox);
           row.append(selectCell);
           row.append(
-            makeCell(word.english, "english-word"),
-            makeCell(word.spanish),
-            makeCell(word.meaning)
+            makeCell(word.english, "english-word word-data-cell"),
+            makeEditableCell(word, "spanish", "Español"),
+            makeEditableCell(word, "meaning", "Significado en inglés")
           );
 
           const knowledgeCell = document.createElement("td");
@@ -974,31 +1061,41 @@
           knowledgeCell.append(knowledgeButton);
           row.append(knowledgeCell);
 
-          const notesCell = document.createElement("td");
-          const notes = document.createElement("textarea");
-          notes.className = "notes-input";
-          notes.setAttribute("aria-label", `Notas para ${word.english}`);
-          notes.placeholder = "Escribe tus notas…";
-          notes.value = word.notes;
-          notes.addEventListener("change", async () => {
-            const savedNotes = word.notes;
-            word.notes = notes.value.trim();
-            try {
-              const { error } = await supabaseClient
-                .from("words")
-                .update({ notes: word.notes })
-                .eq("id", word.id);
-              if (error) throw error;
-              databaseStatus.textContent = "Notas guardadas.";
-            } catch (error) {
-              word.notes = savedNotes;
-              notes.value = savedNotes;
-              databaseStatus.textContent = "No se pudieron guardar las notas. Comprueba tu conexión e inténtalo otra vez.";
-              console.error("Error al guardar las notas:", error);
-            }
-          });
-          notesCell.append(notes);
-          row.append(notesCell);
+          row.append(makeEditableCell(word, "notes", "Notas"));
+
+          const actionCell = document.createElement("td");
+          actionCell.className = "row-actions";
+          if (editingWordIds.has(word.id)) {
+            const saveButton = document.createElement("button");
+            saveButton.className = "edit-button save-edit-button";
+            saveButton.type = "button";
+            saveButton.textContent = "✓";
+            saveButton.setAttribute("aria-label", `Guardar cambios de ${word.english}`);
+            saveButton.addEventListener("click", () => saveWordEdits(word, row, actionCell));
+            const cancelButton = document.createElement("button");
+            cancelButton.className = "edit-button cancel-edit-button";
+            cancelButton.type = "button";
+            cancelButton.textContent = "×";
+            cancelButton.setAttribute("aria-label", `Cancelar edición de ${word.english}`);
+            cancelButton.addEventListener("click", () => {
+              editingWordIds.delete(word.id);
+              renderWords();
+            });
+            actionCell.append(saveButton, cancelButton);
+          } else {
+            const editButton = document.createElement("button");
+            editButton.className = "edit-button";
+            editButton.type = "button";
+            editButton.textContent = "✏️";
+            editButton.setAttribute("aria-label", `Editar español, significado y notas de ${word.english}`);
+            editButton.addEventListener("click", () => {
+              editingWordIds.add(word.id);
+              renderWords();
+              list.querySelector(`[aria-label="Español para ${word.english}"]`)?.focus();
+            });
+            actionCell.append(editButton);
+          }
+          row.append(actionCell);
           list.append(row);
         }
 
