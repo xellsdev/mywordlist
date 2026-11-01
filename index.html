@@ -336,6 +336,81 @@
         vertical-align: 0;
       }
 
+      .exam-dialog {
+        width: min(520px, calc(100% - 32px));
+        padding: 24px;
+        border: 3px solid var(--ink);
+        border-radius: 22px;
+        color: var(--ink);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .exam-dialog::backdrop {
+        background: rgb(38 50 75 / 55%);
+      }
+
+      .exam-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .exam-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+      }
+
+      .exam-progress {
+        margin: 12px 0;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .exam-prompt {
+        margin: 18px 0;
+        font-size: clamp(1.7rem, 6vw, 2.4rem);
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+
+      .exam-answer {
+        display: grid;
+        gap: 12px;
+      }
+
+      .exam-answer input {
+        width: 100%;
+        min-height: 48px;
+        padding: 10px 12px;
+        border: 2px solid #d6dbea;
+        border-radius: 12px;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .exam-feedback {
+        min-height: 1.5em;
+        margin: 16px 0;
+        font-weight: 800;
+      }
+
+      .exam-feedback[data-result="correct"] {
+        color: #247a3a;
+      }
+
+      .exam-feedback[data-result="incorrect"],
+      .exam-feedback[data-result="error"] {
+        color: #a52c2c;
+      }
+
+      .exam-dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
       .print-area {
         display: none;
       }
@@ -680,6 +755,7 @@
           <p class="selection-count" id="selection-count">0 palabras seleccionadas</p>
           <p class="selection-hint">En el diálogo, elige «Guardar como PDF».</p>
           <button class="secondary-button" id="export-pdf" type="button">PDF seleccionadas</button>
+          <button class="secondary-button" id="exam-button" type="button">Examen</button>
           <button class="secondary-button" id="study-pdf" type="button">PDF para estudiar<span class="study-indicator" aria-hidden="true"></span></button>
         </div>
         <p class="status" id="database-status" role="status" aria-live="polite" style="padding: 0 23px;"></p>
@@ -709,6 +785,28 @@
       <section class="print-area" id="print-area" aria-label="Palabras seleccionadas para PDF"></section>
     </main>
 
+    <dialog class="exam-dialog" id="exam-dialog" aria-labelledby="exam-title">
+      <div class="exam-header">
+        <h2 id="exam-title">Examen de vocabulario</h2>
+        <button class="edit-button" id="exam-close" type="button" aria-label="Cerrar examen">×</button>
+      </div>
+      <p class="exam-progress" id="exam-progress"></p>
+      <p class="exam-prompt" id="exam-prompt"></p>
+      <form class="exam-answer" id="exam-answer-form">
+        <label class="field" for="exam-answer-input">
+          <span>Escribe la palabra en inglés</span>
+          <input id="exam-answer-input" type="text" autocomplete="off" required>
+        </label>
+        <div class="exam-dialog-actions">
+          <button class="add-button" id="exam-check" type="submit">Comprobar</button>
+        </div>
+      </form>
+      <p class="exam-feedback" id="exam-feedback" role="status" aria-live="polite"></p>
+      <div class="exam-dialog-actions">
+        <button class="secondary-button" id="exam-next" type="button" hidden>Siguiente</button>
+      </div>
+    </dialog>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
       const APP_URL = "https://xellsdev.github.io/mywordlist/";
@@ -736,12 +834,24 @@
       const selectionCount = document.querySelector("#selection-count");
       const selectVisible = document.querySelector("#select-visible");
       const exportPdfButton = document.querySelector("#export-pdf");
+      const examButton = document.querySelector("#exam-button");
       const studyPdfButton = document.querySelector("#study-pdf");
       const printArea = document.querySelector("#print-area");
+      const examDialog = document.querySelector("#exam-dialog");
+      const examProgress = document.querySelector("#exam-progress");
+      const examPrompt = document.querySelector("#exam-prompt");
+      const examAnswerForm = document.querySelector("#exam-answer-form");
+      const examAnswerInput = document.querySelector("#exam-answer-input");
+      const examCheckButton = document.querySelector("#exam-check");
+      const examFeedback = document.querySelector("#exam-feedback");
+      const examNextButton = document.querySelector("#exam-next");
       const LEGACY_STORAGE_KEY = "english-learning-words";
       let supabaseClient;
       let words = [];
       let knownColumnAvailable = true;
+      let examWords = [];
+      let examIndex = 0;
+      let examAnswered = false;
       const selectedWordIds = new Set();
       const editingWordIds = new Set();
 
@@ -899,6 +1009,99 @@
 
       function getKnowledgeLabel(known) {
         return known ? "🟢 Me la sé" : "🔴 No me la sé";
+      }
+
+      function shuffleWords(items) {
+        const shuffled = items.slice();
+        for (let index = shuffled.length - 1; index > 0; index -= 1) {
+          const randomIndex = Math.floor(Math.random() * (index + 1));
+          [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+        }
+        return shuffled;
+      }
+
+      function showExamWord() {
+        examAnswered = false;
+        examFeedback.textContent = "";
+        examFeedback.dataset.result = "";
+        examNextButton.hidden = true;
+        examAnswerForm.hidden = examIndex >= examWords.length;
+        if (examIndex >= examWords.length) {
+          examProgress.textContent = `${examWords.length} ${examWords.length === 1 ? "palabra revisada" : "palabras revisadas"}`;
+          examPrompt.textContent = "¡Examen terminado!";
+          examAnswerInput.value = "";
+          examNextButton.textContent = "Cerrar examen";
+          examNextButton.hidden = false;
+          return;
+        }
+
+        examProgress.textContent = `Palabra ${examIndex + 1} de ${examWords.length}`;
+        examPrompt.textContent = examWords[examIndex].spanish;
+        examAnswerInput.value = "";
+        examNextButton.textContent = "Siguiente";
+        examAnswerInput.focus();
+      }
+
+      function startExam() {
+        if (!words.length) {
+          databaseStatus.textContent = "Añade palabras antes de empezar el examen.";
+          return;
+        }
+        if (!knownColumnAvailable) {
+          databaseStatus.textContent = "Para guardar tus resultados, aplica primero la actualización de la base de datos.";
+          return;
+        }
+
+        examWords = [
+          ...shuffleWords(words.filter((word) => !word.known)),
+          ...shuffleWords(words.filter((word) => word.known))
+        ];
+        examIndex = 0;
+        showExamWord();
+        examDialog.showModal();
+      }
+
+      async function checkExamAnswer(event) {
+        event.preventDefault();
+        if (examAnswered || examIndex >= examWords.length) return;
+
+        const word = examWords[examIndex];
+        const isCorrect = normalizeWord(examAnswerInput.value) === normalizeWord(word.english);
+        examCheckButton.disabled = true;
+        examFeedback.textContent = "Guardando resultado…";
+        examFeedback.dataset.result = "";
+        try {
+          const { error } = await supabaseClient
+            .from("words")
+            .update({ known: isCorrect })
+            .eq("id", word.id);
+          if (error) throw error;
+
+          word.known = isCorrect;
+          examAnswered = true;
+          examAnswerForm.hidden = true;
+          examFeedback.dataset.result = isCorrect ? "correct" : "incorrect";
+          examFeedback.textContent = isCorrect
+            ? "¡Correcto! La respuesta está bien."
+            : `¡Ups, esa no es! La respuesta correcta es «${word.english}».`;
+          examNextButton.hidden = false;
+          databaseStatus.textContent = "Resultado del examen guardado.";
+          updateSelectionCount();
+          renderWords();
+        } catch (error) {
+          examFeedback.dataset.result = "error";
+          if (isMissingKnownColumn(error)) {
+            knownColumnAvailable = false;
+            examFeedback.textContent = "Falta aplicar la actualización de la base de datos. No se ha avanzado en el examen.";
+            databaseStatus.textContent = "Ejecuta supabase-migration-known.sql en el editor SQL y vuelve a entrar.";
+            renderWords();
+          } else {
+            examFeedback.textContent = "No se pudo guardar el resultado. Comprueba tu conexión e inténtalo otra vez.";
+          }
+          console.error("Error al guardar la respuesta del examen:", error);
+        } finally {
+          examCheckButton.disabled = false;
+        }
       }
 
       async function toggleKnowledge(word, button) {
@@ -1242,6 +1445,19 @@
           wordsToStudy,
           `${wordsToStudy.length} ${wordsToStudy.length === 1 ? "palabra para estudiar" : "palabras para estudiar"}`
         );
+      });
+
+      examButton.addEventListener("click", startExam);
+      document.querySelector("#exam-close").addEventListener("click", () => examDialog.close());
+      examAnswerForm.addEventListener("submit", checkExamAnswer);
+      examNextButton.addEventListener("click", () => {
+        if (examIndex >= examWords.length) {
+          examDialog.close();
+          return;
+        }
+        if (!examAnswered) return;
+        examIndex += 1;
+        showExamWord();
       });
 
       async function authenticate(action) {
