@@ -244,6 +244,10 @@
         font-weight: 800;
       }
 
+      .exam-button {
+        background: #ffb347;
+      }
+
       .secondary-button:disabled,
       .add-button:disabled {
         cursor: wait;
@@ -754,8 +758,8 @@
         <div class="selection-tools">
           <p class="selection-count" id="selection-count">0 palabras seleccionadas</p>
           <p class="selection-hint">En el diálogo, elige «Guardar como PDF».</p>
+          <button class="secondary-button exam-button" id="exam-button" type="button">Examen</button>
           <button class="secondary-button" id="export-pdf" type="button">PDF seleccionadas</button>
-          <button class="secondary-button" id="exam-button" type="button">Examen</button>
           <button class="secondary-button" id="study-pdf" type="button">PDF para estudiar<span class="study-indicator" aria-hidden="true"></span></button>
         </div>
         <p class="status" id="database-status" role="status" aria-live="polite" style="padding: 0 23px;"></p>
